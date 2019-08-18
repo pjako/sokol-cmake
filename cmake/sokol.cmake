@@ -1,0 +1,7 @@
+function(sokol_app app_name glsl_source source_files)
+    if(APPLE)
+        add_executable(${app_name} MACOSX_BUNDLE ${source_files})
+    endif()
+    target_link_libraries(${app_name} sokol)
+    shd_shader(${app_name} ${glsl_source})
+endfunction()
