@@ -11,18 +11,6 @@ find_program(SHD_BIN_PATH
             PATHS ${TOOLS_DIR} ENV PATH
             DOC "path to glslcc binary")
 
-if (APPLE)
-    add_definitions(-DSOKOL_METAL)
-    if (IOS)
-        set(slang "metal_ios:metal_sim")
-    else()
-        set(slang "metal_macos")
-    endif()
-elseif (ANDROID)
-    add_definitions(-DSOKOL_GLES3)
-    set(slang "glsl300es")
-endif()
-
 function(shd_shader target_name source_files)
     message(STATUS "Found shd: ${SHD_BIN_PATH}")
 

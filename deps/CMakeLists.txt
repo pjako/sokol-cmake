@@ -1,7 +1,6 @@
 set (SOKOL_FILES sokol/sokol_app.h sokol/sokol_args.h sokol/sokol_audio.h sokol/sokol_fetch.h sokol/sokol_gfx.h sokol/sokol_time.h)
 if(APPLE)
     add_library(sokol STATIC ${SOKOL_FILES} sokol.m)
-    target_include_directories(sokol PUBLIC sokol)
     target_compile_options(sokol PUBLIC "-fobjc-arc")
 
     #find_library(APPKIT AppKit)
@@ -15,3 +14,4 @@ if(APPLE)
 else()
     add_library(sokol STATIC ${SOKOL_FILES} sokol.c)
 endif()
+target_include_directories(sokol PUBLIC sokol)

@@ -1,5 +1,22 @@
 cmake_minimum_required(VERSION 3.1)
 project(sokol-cmake)
+
+if (APPLE)
+    add_definitions(-DSOKOL_METAL)
+    if (IOS)
+        set(slang "metal_ios:metal_sim")
+    else()
+        set(slang "metal_macos")
+    endif()
+elseif (ANDROID)
+    add_definitions(-DSOKOL_GLES3)
+    set(slang "glsl300es")
+elseif (WIN32)
+    add_definitions(-DSOKOL_D3D11)
+    set(slang "hlsl5")
+    message(STATUS "using D3D11")
+endif()
+
 # add external dependencies
 add_subdirectory(deps)
 
