@@ -27,6 +27,11 @@ function(shd_shader target_name source_files)
         )
 
         # add to source files
+        
+    if(APPLE)
         target_sources(${target_name} PRIVATE ${shd_output_file})
+    else()
+        target_sources(${target_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/${shd_output_file}" "${CMAKE_CURRENT_SOURCE_DIR}/${source_file}")
+    endif()
     endforeach()
 endfunction()
