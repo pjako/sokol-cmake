@@ -15,6 +15,7 @@
 #define RX_APIDEF rx_Context* ctx,
 #define RX_APIDEFS rx_Context* ctx
 #endif
+typedef uint8_t rx_u8;
 typedef uint32_t rx_u32;
 typedef rx_u32 rx_b32;
 typedef uint64_t rx_u64;
@@ -34,6 +35,15 @@ typedef uint64_t rx_u64;
 #ifndef RX_MAX_SHADERSTAGE_BUFFERS
 #define RX_MAX_SHADERSTAGE_BUFFERS 8
 #endif
+
+#ifndef RX_MAX_RENDERTARGETS
+#define RX_MAX_RENDERTARGETS 8
+#endif
+
+#ifndef RX_SET_BUFFERS_COUNT
+#define RX_SET_BUFFERS_COUNT 8
+#endif
+
 /*
 	SG_INVALID_ID = 0,
 	SG_NUM_SHADER_STAGES = 2,
@@ -111,9 +121,9 @@ typedef struct rx_computePipeline {
 	rx_u64 id;
 } rx_computePipeline;
 
-typedef struct rx_graphicsShader {
+typedef struct rx_graphicsProgram {
 	rx_u64 id;
-} rx_graphicsShader;
+} rx_graphicsProgram;
 
 RX_API rx_Context* rx_createContext(const rx_Desc* desc);
 RX_API void rx_commit(RX_APIDEFS);
@@ -155,8 +165,8 @@ typedef enum rx_uniformType {
 typedef enum rx_indexType {
     rx_indexType__default,   /* value 0 reserved for default-init */
     rx_indexType_none,
-    rx_indexType_uint16,
-    rx_indexType_uint32,
+    rx_indexType_u16,
+    rx_indexType_u32,
     rx_indexType__count,
     rx_indexType__force32 = 0x7FFFFFFF
 } rx_indexType;
@@ -180,6 +190,26 @@ typedef enum rx_imageType {
 } rx_imageType;
 
 /* pipeline */
+
+typedef enum rx_bitOperation {
+	rx_bitOperation_copy, // s - zero, means bit operation is disabled.
+	rx_bitOperation_copyInv, // ~s
+	rx_bitOperation_setZero, // 0
+	rx_bitOperation_setOne, // 1
+	rx_bitOperation_reverse, // ~d
+	rx_bitOperation_and, // d & s
+	rx_bitOperation_notAnd, // ~(d & s)
+	rx_bitOperation_or, // d | s
+	rx_bitOperation_notOr, // ~(d | s)
+	rx_bitOperation_xor, // d ^ s
+	rx_bitOperation_equal, // ~(d ^ s)
+	rx_bitOperation_andRev, // ~d & s
+	rx_bitOperation_andInv, // d & ~s
+	rx_bitOperation_orRev, // ~d | s
+	rx_bitOperation_orInv, // d | ~s
+	rx_bitOperation__count,
+    rx_bitOperation__force32 = 0x7FFFFFFF
+} rx_bitOperation;
 
 typedef enum rx_blendFactor {
 	rx_blendFactor__default, /* value 0 reserved for default-init */
@@ -217,29 +247,31 @@ typedef enum rx_blendOp {
     the layout of vertex data when creating a pipeline object.
 */
 typedef enum rx_vertexFormat {
-    rx_VERTEXFORMAT__INVALID,
-    rx_vertexFormat_float,
-    rx_vertexFormat_float2,
-    rx_vertexFormat_float3,
-    rx_vertexFormat_float4,
-    rx_vertexFormat_byte4,
-    rx_vertexFormat_byte4N,
-    rx_vertexFormat_uByte4,
-    rx_vertexFormat_uByte4N,
-    rx_vertexFormat_short2,
-    rx_vertexFormat_short2N,
-    rx_vertexFormat_uShort2N,
-    rx_vertexFormat_short4,
-    rx_vertexFormat_short4N,
-    rx_vertexFormat_uShort4N,
-    rx_vertexFormat_uInt10_N2,
+    rx_VERTEXFORMAT__invalid,
+    rx_vertexFormat_f32x1,
+    rx_vertexFormat_f32x2,
+    rx_vertexFormat_f32x3,
+    rx_vertexFormat_f32x4,
+    rx_vertexFormat_f16x2,
+    rx_vertexFormat_f16x4,
+    rx_vertexFormat_s8x4,
+    rx_vertexFormat_s8x4N,
+    rx_vertexFormat_u8x4,
+    rx_vertexFormat_u8x4N,
+    rx_vertexFormat_s16x2,
+    rx_vertexFormat_s16x2N,
+    rx_vertexFormat_u16x2N,
+    rx_vertexFormat_s16x4,
+    rx_vertexFormat_s16x4N,
+    rx_vertexFormat_u16x4N,
+    rx_vertexFormat_u10x3U2x1N,
     rx_VERTEXFORMAT__NUM,
     rx_VERTEXFORMAT__FORCE_U32 = 0x7FFFFFFF
 } rx_vertexFormat;
 
 typedef enum rx_pixelFormat {
     rx_pixelFormat__default,    /* value 0 reserved for default-init */
-    rx_pixelFormat_NONE,
+    rx_pixelFormat_none,
 
     rx_pixelFormat_R8,
     rx_pixelFormat_R8SN,
@@ -308,6 +340,10 @@ typedef enum rx_pixelFormat {
     rx_pixelFormat_ETC2_RG11,
     rx_pixelFormat_ETC2_RG11SN,
 
+    
+    rx_pixelFormat_d32,
+    rx_pixelFormat_d24S8,
+
     rx_pixelFormat__count,
     rx_pixelFormat__forceU32 = 0x7FFFFFFF
 } rx_pixelFormat;
@@ -334,23 +370,22 @@ typedef struct rx_ShaderImageDesc {
 	rx_imageType type;
 } rx_ShaderImageDesc;
 
-typedef struct rx_shaderStageDesc {
+typedef struct rx_ShaderStageDesc {
 	const char* source;
-	const uint8_t* byteCode;
-	int byte_code_size;
+	const rx_u8* byteCode;
+	int byteCodeSize;
 	const char* entry;
 	rx_ShaderUniformBlockDesc uniform_blocks[RX_MAX_SHADERSTAGE_UBS];
 	rx_ShaderImageDesc images[RX_MAX_SHADERSTAGE_IMAGES];
-} sg_shader_stage_desc;
+} rx_ShaderStageDesc;
 
-typedef struct rx_GraphicsShaderDesc {
-	uint32_t _start_canary;
+typedef struct rx_GraphicsProgramDesc {
+	uint32_t _startCanary;
 	rx_shaderAttrDesc attrs[RX_MAX_VERTEX_ATTRIBUTES];
-	sg_shader_stage_desc vs;
-	sg_shader_stage_desc fs;
-	const char* label;
-	uint32_t _end_canary;
-} rx_GraphicsShaderDesc;
+	rx_ShaderStageDesc vs;
+	rx_ShaderStageDesc fs;
+	uint32_t _endCanary;
+} rx_GraphicsProgramDesc;
 
 typedef struct rx_BlendState {
     bool enabled;
@@ -368,43 +403,380 @@ typedef struct rx_BlendState {
 } rx_BlendState;
 
 typedef struct rx_BufferLayoutDesc {
-    int stride;
+    rx_u32 stride;
     rx_vertexStep stepFunc;
-    int step_rate;
+	rx_u32 stepRate;
 } rx_BufferLayoutDesc;
 
-typedef struct rx_VertexAttrDesc {
-    int buffer_index;
-    int offset;
-    rx_vertexFormat format;
-} rx_VertexAttrDesc;
+typedef struct rx_ComputePipelineDesc {
+    rx_u64 foo;
+} rx_ComputePipelineDesc;
 
-typedef struct rx_LayoutDesc {
-    rx_BufferLayoutDesc buffers[RX_MAX_SHADERSTAGE_BUFFERS];
-    rx_VertexAttrDesc attrs[RX_MAX_VERTEX_ATTRIBUTES];
-} rx_LayoutDesc;
+typedef struct rx_buffer {
+    rx_u64 id;
+} rx_buffer;
+
+// These must be immutable as long as they are attached to an active input list.
+typedef enum rx_inputType {
+    rx_inputType__invalid,
+	rx_inputType_constantBuffer, // Buffer and offset bound directly.
+	rx_inputType_constantBufferHandle, // Buffer bound via a handle.
+	rx_inputType_uniform, // One of the constant input types, depending on the strategy.
+	rx_inputType_structureBufferHandle,
+	rx_inputType_editBufferHandle,
+	rx_inputType_textureHandle,
+	rx_inputType_editImageHandle,
+	rx_inputType_samplerHandle,
+    rx_inputType__count,
+    rx_inputType__forceU32 = 0x7FFFFFFF
+} rx_inputType;
+
+typedef enum rx_stageVisibility {
+    rx_stageVisibility__default,
+    rx_stageVisibility_all, /* default */
+    rx_stageVisibility_vertex,
+    rx_stageVisibility_fragment,
+    rx_stageVisibility__count,
+    rx_stageVisibility__forceU32 = 0x7FFFFFFF
+} rx_stageVisibility;
+
+/*
+    sg_color_mask
+    Selects the color channels when writing a fragment color to the
+    framebuffer. This is used in the members
+    sg_pipeline_desc.blend.color_write_mask when creating a pipeline object.
+    The default colormask is rx_colorMask_RGBA (write all colors channels)
+*/
+typedef enum rx_colorMask {
+    rx_colorMask__default = 0,      /* value 0 reserved for default-init */
+    rx_colorMask_NONE = (0x10),     /* special value for 'all channels disabled */
+    rx_colorMask_r = (1<<0),
+    rx_colorMask_g = (1<<1),
+    rx_colorMask_b = (1<<2),
+    rx_colorMask_a = (1<<3),
+    rx_colorMask_rgb = 0x7,
+    rx_colorMask_rgba = 0xF,
+    rx_colorMask_forceU32 = 0x7FFFFFFF
+} rx_colorMask;
+
+typedef struct rx_Input {
+	rx_inputType type;
+	rx_stageVisibility stageVisibility;
+	union {
+		struct { uint8_t constantBufferIndex, globalIndex; } constantBuffer;
+		struct { uint8_t constantBufferFirstIndex, globalIndex, count; } constantBufferHandle;
+		struct { uint8_t structureBufferFirstIndex, globalIndex, count; } structureBufferHandle;
+		struct { uint8_t editBufferFirstIndex, globalIndex, count; } editBufferHandle;
+		struct { uint8_t textureFirstIndex, globalIndex, count; } imageHandle;
+		struct { uint8_t editImageFirstIndex, globalIndex, count; } editImageHandle;
+		// Static samplers are an optimization that may be unsupported, not a full replacement for binding.
+		// staticSamplerIndex is an index in the array of static samplers that is passed when the input list is created.
+		// If static samplers are supported and provided, they will override bindings for non-SamplerDynamicOnly inputs.
+		// However, as they may be unsupported by implementations, samplers still must be bound.
+		struct { uint8_t samplerFirstIndex, globalIndex, count, staticSamplerIndex; } samplerHandle;
+	} parameters;
+} rx_Input;
+
+typedef struct rx_VertexAttributeDesc {
+    int bufferIndex;
+    int offset;
+    const char* semanticName;
+    int semanticIndex;
+    rx_vertexFormat format;
+} rx_VertexAttributeDesc;
+
+
+typedef enum rx_shaderStage {
+//	rx_shaderStage_invalid,
+	rx_shaderStage_vertex,
+	rx_shaderStage_pixel,
+	rx_shaderStage_compute,
+    rx_shaderStage__count,
+    rx_shaderStage__forceU32 = 0x7FFFFFFF
+} rx_shaderStage;
+
+typedef enum rx_shaderStageBits {
+	rx_shaderStageBits_vertex = 1 << rx_shaderStage_vertex,
+	rx_shaderStageBits_pixel = 1 << rx_shaderStage_pixel,
+	rx_shaderStageBits_compute = 1 << rx_shaderStage_compute
+} rx_shaderStageBits;
+
+#define RX_MAX_INPUTS 16
+#define RX_MAX_SAMPLER 24
+#define RX_MAX_INPUT_BUFFERS 16
+#define RX_MAX_INPUT_ATTRIBUTES 16
+typedef struct rx_InputLayoutDesc {
+	rx_stageVisibility uniformStages;
+	rx_u32 uniform32BitCount; // Add abGPU_InputConfig_UniformDrawIndex32BitCount to this if needed.
+	rx_b32 uniformUseBuffer;
+//	uint8_t uniformBufferGlobalIndex;
+    rx_Input inputs[RX_MAX_INPUTS];
+    rx_BufferLayoutDesc vertexBuffers[RX_MAX_INPUT_BUFFERS];
+	rx_VertexAttributeDesc vertexAttributes[RX_MAX_INPUT_ATTRIBUTES];
+    const char* label;
+} rx_InputLayoutDesc;
+
+typedef struct rx_RenderTargetDesc {
+	rx_pixelFormat format;
+	rx_b32 blend;
+
+    rx_blendFactor srcFactorRgb;
+    rx_blendFactor dstFactorRgb;
+    rx_blendOp opRgb;
+
+    rx_blendFactor srcFactorAlpha;
+    rx_blendFactor dstFactorAlpha;
+    rx_blendOp opAlpha;
+
+	rx_bitOperation bitOperation;
+	rx_u8 colorWriteMask;
+} rx_RenderTargetDesc;
+
+/*
+    rx_cullMode
+    The face-culling mode, this is used in the
+    sg_pipeline_desc.rasterizer.cull_mode member when creating a
+    pipeline object.
+    The default cull mode is rx_cullMode_none
+*/
+typedef enum rx_cullMode {
+    rx_cullMode__default,   /* value 0 reserved for default-init */
+    rx_cullMode_none,
+    rx_cullMode_front,
+    rx_cullMode_back,
+    rx_cullMode__count,
+    rx_cullMode__forceU32 = 0x7FFFFFFF
+} rx_cullMode;
+
+/*
+    rx_faceWinding
+    The vertex-winding rule that determines a front-facing primitive. This
+    is used in the member sg_pipeline_desc.rasterizer.face_winding
+    when creating a pipeline object.
+    The default winding is rx_faceWinding_clockWise (clockwise)
+*/
+typedef enum rx_faceWinding {
+    rx_faceWinding__default,    /* value 0 reserved for default-init */
+    rx_faceWinding_counterClockWise,
+    rx_faceWinding_clockWise,
+    rx_faceWinding__count,
+    rx_faceWinding__forceU32 = 0x7FFFFFFF
+} rx_faceWinding;
+
+typedef enum rx_fillMode {
+    rx_fillMode_solid,
+    rx_fillMode_wireFrame,
+	rx_fillMode__forceU32 = 0x7FFFFFFF
+} rx_fillMode;
+
+typedef struct rx_RasterizerState {
+    bool alphaToCoverageEnabled;
+    rx_fillMode fillMode;
+    rx_cullMode cullMode;
+    rx_faceWinding faceWinding;
+    int sampleCount;
+    float depthBias;
+    float depthBiasSlopeScale;
+    float depthBiasClamp;
+} rx_RasterizerState;
+
+/*
+    rx_compareFunc
+    The compare-function for depth- and stencil-ref tests.
+    This is used when creating pipeline objects in the members:
+
+    The default compare func for depth- and stencil-tests is
+    rx_compareFunc_always.
+*/
+typedef enum rx_compareFunc {
+    rx_compareFunc__default,    /* value 0 reserved for default-init */
+    rx_compareFunc_never,
+    rx_compareFunc_less,
+    rx_compareFunc_equal,
+    rx_compareFunc_lessEqual,
+    rx_compareFunc_greater,
+    rx_compareFunc_notEqual,
+    rx_compareFunc_greaterEqual,
+    rx_compareFunc_always,      /* default */
+    rx_compareFunc__count,
+    rx_compareFunc__forceU32 = 0x7FFFFFFF
+} rx_compareFunc;
+
+/*
+    rx_stencilOp
+    The operation performed on a currently stored stencil-value when a
+    comparison test passes or fails. This is used when creating a pipeline
+    The default value is rx_stencilOp_keep.
+*/
+typedef enum rx_stencilOp {
+    rx_stencilOp__default,      /* value 0 reserved for default-init */
+    rx_stencilOp_keep,          /* default */
+    rx_stencilOp_zero,
+    rx_stencilOp_replace,
+    rx_stencilOp_incrementClamp,
+    rx_stencilOp_decrementClamp,
+    rx_stencilOp_invert,
+    rx_stencilOp_incrementWrap,
+    rx_stencilOp_decrementWrap,
+    rx_stencilOp__count,
+    rx_stencilOp_forceU32 = 0x7FFFFFFF
+} rx_stencilOp;
+
+
+typedef struct rx_stencilState {
+    rx_stencilOp failOp;
+    rx_stencilOp depthFailOp;
+    rx_stencilOp passOp;
+    rx_compareFunc compareFunc;
+} rx_stencilState;
+
+typedef struct rx_DepthStencilState {
+    rx_stencilState stencilFront;
+    rx_stencilState stencilBack;
+    rx_compareFunc depthCompareFunc;
+    bool depthWriteEnabled;
+    bool stencilEnabled;
+    uint8_t stencilReadMask;
+    uint8_t stencilWriteMask;
+    uint8_t stencilRef;
+} rx_DepthStencilState;
+
+
+/*
+    rx_primitiveType
+    This is the common subset of 3D primitive types supported across all 3D
+    APIs. This is used in the sg_pipeline_desc.primitive_type member when
+    creating a pipeline object.
+    The default primitive type is rx_primitiveType_triangles.
+*/
+typedef enum rx_primitiveType {
+    rx_primitiveType__default,  /* value 0 reserved for default-init */
+    rx_primitiveType_points,
+    rx_primitiveType_lines,
+    // rx_primitiveType_lineStrip,
+    rx_primitiveType_triangles,
+    // rx_primitiveType_triangleStrips,
+    rx_primitiveType__count,
+    rx_primitiveType__forceU32 = 0x7FFFFFFF
+} rx_primitiveType;
 
 typedef struct rx_GraphicsPipelineDesc {
 	uint32_t _startCanary;
-	rx_LayoutDesc layout;
-	rx_graphicsShader shader;
+    rx_InputLayoutDesc input;
 	rx_BlendState blend;
+    rx_RasterizerState rasterizer;
+    rx_primitiveType primitiveType;
+    rx_indexType indexType;
+    rx_pixelFormat depthFormat; /* DXGI_FORMAT_D32_FLOAT */
+    rx_DepthStencilState depthStencil;
+    rx_GraphicsProgramDesc program;
+    rx_RenderTargetDesc renderTargets[RX_MAX_RENDERTARGETS];
 	const char* label;
-#if 0
-	sg_primitive_type primitive_type;
-	sg_index_type index_type;
-	sg_depth_stencil_state depth_stencil;
-	sg_rasterizer_state rasterizer;
-#endif
 	uint32_t _endCanary;
 } rx_GraphicsPipelineDesc;
 
-typedef struct rx_ComputePipelineDesc {
-    int foo;
-} rx_ComputePipelineDesc;
+typedef enum rx_bufferType {
+    rx_bufferType__default,         /* value 0 reserved for default-init */
+    rx_bufferType_vertexBuffer,
+    rx_bufferType_indexBuffer,
+    rx_bufferType__count,
+    rx_bufferType__forceU32 = 0x7FFFFFFF
+} rx_bufferType;
+
+typedef enum rx_bufferUsage {
+	rx_bufferUsage__default,
+	rx_bufferUsage_vertices,
+	rx_bufferUsage_constants,
+	rx_bufferUsage_indices,
+	rx_bufferUsage_structures, // Structured data readable in pixel shaders.
+	rx_bufferUsage_structuresNonPixelStage,  // Structured data readable in non-pixel shaders.
+	rx_bufferUsage_structuresAnyStage, // Structured data readable at all shader stages.
+	rx_bufferUsage_edit, // Directly editable in shaders.
+	rx_bufferUsage_copySource,
+	rx_bufferUsage_copyDestination,
+	rx_bufferUsage_copyQueue, // Owned by the copy command queue (which doesn't have the concept of usages).
+	rx_bufferUsage_cpuWrite, // CPU-writable or upload buffer.
+	rx_bufferUsage__count,
+	rx_bufferUsage__forceU32 = 0x7FFFFFFF
+} rx_bufferUsage;
+
+typedef enum rx_bufferAccess {
+	rx_bufferAccess__default,
+	rx_bufferAccess_gpuInternal,
+	rx_bufferAccess_cpuWrite,
+	rx_bufferAccess_upload,
+	rx_bufferAccess__forceU32 = 0x7FFFFFFF
+} rx_bufferAccess;
+
+typedef struct rx_BufferDesc {
+    uint32_t _startCanary;
+    int size;
+    rx_bufferType type;
+    //sg_usage usage;
+    const void* content;
+    const char* label;
+	rx_bufferAccess access;
+	rx_bufferUsage usage;
+    /* GL specific */
+    //uint32_t gl_buffers[SG_NUM_INFLIGHT_FRAMES];
+    /* Metal specific */
+    //const void* mtl_buffers[SG_NUM_INFLIGHT_FRAMES];
+    /* D3D11 specific */
+    //const void* d3d11_buffer;
+    uint32_t _endCanary;
+} rx_BufferDesc;
+
+typedef struct rx_SetVertexBufferViewsDesc {
+    rx_u32 startSlot;
+    rx_buffer buffers[RX_SET_BUFFERS_COUNT];
+    rx_u32 strides[RX_SET_BUFFERS_COUNT];
+    rx_u32 offsets[RX_SET_BUFFERS_COUNT];
+} rx_SetVertexBufferViewsDesc;
+
+typedef struct rx_IndexBufferView {
+  rx_buffer buffer;
+  rx_indexType format;
+  rx_u32 offset;
+} rx_IndexBufferView;
+
+typedef struct rx_VertexBufferView {
+  rx_buffer buffer;
+  rx_indexType format;
+  rx_u32 offset;
+  rx_u32 sizeInBytes;
+  rx_u32 strideInBytes;
+} rx_VertexBufferView;
+#ifndef RX_MAX_RENDER_TARGETS
+#define RX_MAX_RENDER_TARGETS 8
+#endif
+typedef struct rx_GraphicsListStateDesc {
+	unsigned int colorCount;
+#if 0
+	abGPU_RT color[abGPU_RT_Count];
+	abGPU_RT depth;
+	abGPU_RT_PrePostAction stencilPrePostAction;
+
+	#if defined(abBuild_GPUi_D3D)
+	D3D12_CPU_DESCRIPTOR_HANDLE i_descriptorHandles[abGPU_RT_Count + 2u]; // Depth and stencil (duplicated) at abGPU_RT_Count.
+	ID3D12Resource * i_resources[abGPU_RT_Count + 2u]; // Depth and stencil (duplicated) at abGPU_RT_Count.
+	unsigned int i_subresources[abGPU_RT_Count + 2u]; // Depth and stencil at abGPU_RT_Count.
+	unsigned int i_preDiscardBits, i_preClearBits, i_postDiscardBits; // Depth and stencil at (1...2)<<abGPU_RT_Count.
+	#endif
+#endif
+} rx_GraphicsListStateDesc;
+/* graphics program */
+// RX_API rx_graphicsProgram rx_makeGraphicsProgram(RX_APIDEF rx_GraphicsProgramDesc* desc);
+/* buffer */
+RX_API rx_buffer rx_makeBuffer(RX_APIDEF const rx_BufferDesc* desc);
+//RX_API void rx_updateBuffer(rx_buffer buf, const void* ptr, int numBytes);
 /* graphics list */
-RX_API rx_graphicsPipeline rx_createGraphicsPipeline(RX_APIDEF rx_GraphicsPipelineDesc* desc);
-RX_API void rx_graphicsListCreate(RX_APIDEFS);
+RX_API rx_graphicsPipeline rx_makeGraphicsPipeline(RX_APIDEF rx_GraphicsPipelineDesc* desc);
+
+RX_API rx_graphicsList rx_makeGraphicsList(RX_APIDEF rx_graphicsPipeline pipeline);
+RX_API void rx_graphicsListBegin(RX_APIDEF rx_graphicsList list, rx_GraphicsListStateDesc* config);
+RX_API void rx_graphicsListEnd(RX_APIDEF rx_graphicsList list);
+RX_API void rx_graphicsListSetVertexBuffers(RX_APIDEF rx_graphicsList list, rx_VertexBufferView* buffersViews, rx_u32 length);
+RX_API void rx_graphicsListSetIndexBuffer(RX_APIDEF rx_graphicsList list, rx_IndexBufferView* indexbufferView);
 RX_API void rx_graphicsListClearRenderTargetView(RX_APIDEF rx_graphicsList list, const float rgba[4]);
 /* compute lists */
 RX_API rx_computePipeline rx_createComputePipeline(RX_APIDEF rx_ComputePipelineDesc* desc);

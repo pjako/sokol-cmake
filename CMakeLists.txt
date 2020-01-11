@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(sokol-cmake)
+project(rx)
 add_definitions(-DRX_DX12_ENABLED)
 if(WIN32)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR -DWIN32_LEAN_AND_MEAN)
@@ -79,7 +79,8 @@ add_library(RXRenderer STATIC
 target_include_directories(RXRenderer PUBLIC src/)
 
 add_executable(App WIN32
-	app.c
+    app.c
+    HandmadeMath.h
 )
 
 # target_include_directories(App

@@ -9,6 +9,10 @@
 #include <windowsx.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stddef.h>
+
+#define HANDMADE_MATH_IMPLEMENTATION
+#include "HandmadeMath.h"
 
 #if 0
 #include <dxgi1_6.h>
@@ -153,6 +157,12 @@ void d3d12_init(int w, int h, int sample_count, const wchar_t* title) {
 	ShowWindow(hwnd, SW_SHOW);
 }
 
+// Vertex data for a colored cube.
+typedef struct VertexPosColor {
+    float Position[3];
+    float Color[3];
+} VertexPosColor;
+
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
 	/*
 	printf("Foooo!");
@@ -163,8 +173,113 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	OutputDebugString("Setup dx!\n");
 	d3d12_init(800, 650, 1, L"D3D12 test");
 	rx_Context* ctx = rx_createContext(&(rx_Desc) {
-		.dx12Hwnd = hwnd
+		.dx12Hwnd = hwnd,
+		.debug = true
 	});
+
+	//rx_VertexAttributeDesc vertexAttributes[RX_MAX_INPUT_ATTRIBUTES];
+	
+	rx_graphicsPipeline pipeline = rx_makeGraphicsPipeline(ctx, &(rx_GraphicsPipelineDesc) {
+		.label = "Shader",
+		.input.uniformStages = rx_stageVisibility_vertex,
+		.input.uniform32BitCount = sizeof(hmm_mat4) / 4,
+		.input.vertexAttributes = {
+			{
+			/* int */ .bufferIndex = 0,
+			/* int */ .offset = offsetof(VertexPosColor, Position),
+			/*const char* */ .semanticName = "Position",
+			/* int */ .semanticIndex = 0,
+			/* rx_vertexFormat */ .format = rx_vertexFormat_f32x3,
+			},
+			{
+			/* int */ .bufferIndex = 0,
+			/* int */ .offset = offsetof(VertexPosColor, Color),
+			/*const char* */ .semanticName = "Color",
+			/* int */ .semanticIndex = 0,
+			/* rx_vertexFormat */ .format = rx_vertexFormat_f32x3,
+			}
+		},
+		.program.vs.source =
+		"struct ModelViewProjection"
+		"{"
+		"    matrix MVP;"
+		"};"
+		""
+		"ConstantBuffer<ModelViewProjection> ModelViewProjectionCB : register(b0, space0);"
+		""
+		"struct VertexPosColor"
+		"{"
+		" float3 Position : POSITION;"
+		"    float3 Color    : COLOR;"
+		"};"
+		" "
+		"struct VertexShaderOutput"
+		"{"
+		"    float4 Color    : COLOR;"
+		"    float4 Position : SV_Position;"
+		"};"
+		" "
+		"VertexShaderOutput main(VertexPosColor IN)"
+		"{"
+		"    VertexShaderOutput OUT;"
+		""
+		"    OUT.Position = mul(ModelViewProjectionCB.MVP, float4(IN.Position, 1.0f));"
+		"    OUT.Color = float4(IN.Color, 1.0f);"
+		""
+		"    return OUT;"
+		"}",
+		.program.fs.source =
+		"struct PixelShaderInput"
+		"{"
+		"    float4 Color    : COLOR;"
+		"};"
+		" "
+		"float4 main( PixelShaderInput IN ) : SV_Target"
+		"{"
+		"    return IN.Color;"
+		"}",
+	});
+
+    static VertexPosColor vertices[8] = {
+        { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f} }, // 0
+        { {-1.0f,  1.0f, -1.0f}, {0.0f, 1.0f, 0.0f} }, // 1
+        { { 1.0f,  1.0f, -1.0f}, {1.0f, 1.0f, 0.0f} }, // 2
+        { { 1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f} }, // 3
+        { {-1.0f, -1.0f,  1.0f}, {0.0f, 0.0f, 1.0f} }, // 4
+        { {-1.0f,  1.0f,  1.0f}, {0.0f, 1.0f, 1.0f} }, // 5
+        { { 1.0f,  1.0f,  1.0f}, {1.0f, 1.0f, 1.0f} }, // 6
+        { { 1.0f, -1.0f,  1.0f}, {1.0f, 0.0f, 1.0f} }  // 7
+    };
+	static WORD indicies[36] = {
+		0, 1, 2, 0, 2, 3,
+		4, 6, 5, 4, 7, 6,
+		4, 5, 1, 4, 1, 0,
+		3, 2, 6, 3, 6, 7,
+		1, 5, 6, 1, 6, 2,
+		4, 0, 3, 4, 3, 7
+	};
+	rx_buffer vertexBuffer = rx_makeBuffer(ctx, &(rx_BufferDesc) {
+		.usage = rx_bufferUsage_vertices,
+		.size = sizeof(vertices)
+	});
+
+	rx_buffer indexBuffer = rx_makeBuffer(ctx, &(rx_BufferDesc) {
+		.usage = rx_bufferUsage_indices,
+		.size = sizeof(indicies)
+	});
+
+#if 0
+	rx_graphicsList uploadList = rx_makeGraphicsList(ctx, pipeline);
+	rx_graphicsListBegin(ctx, uploadList, NULL);
+	rx_gfxListUploadBufferData(ctx, uploadList, vertexBuffer, g_Vertices, sizeof(g_Vertices));
+	rx_gfxListUploadBufferData(ctx, uploadList, indexBuffer, g_Indicies, sizeof(g_Indicies));
+	rx_gfxListEnd(ctx);
+	rx_buffer constantBuffer = rx_makeBuffer(ctx, &(rx_BufferDesc) {
+		.usage = rx_bufferUsage_constants,
+	});
+
+#endif
+
 	assert(ctx && "No context!");
 	while (d3d11_process_events()) {
 		rx_commit(ctx);

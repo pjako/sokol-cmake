@@ -91,18 +91,19 @@ void rx_commit(rx_Context* ctx) {
 
 }
 
+rx_buffer rx_makeBuffer(RX_APIDEF const rx_BufferDesc* desc) {
+	return rx_dx12MakeBuffer(ctx, desc);
+}
 
-rx_graphicsPipeline rx_createGraphicsPipeline(RX_APIDEF rx_GraphicsPipelineDesc* desc) {
-	switch (ctx->backend) {
-#ifdef RX_DX12_ENABLED
-		case rx_renderBackend_DX12: {
-			return rx_dx12CreateGraphicsPipeline(ctx, desc);
-		}
-#endif
-#ifdef RX_VK_ENABLED
-		case rx_renderBackend_VK: {
-			return rx_vkCreateGraphicsPipeline(ctx, desc);
-		}
-#endif
-	}
+rx_graphicsList rx_makeGraphicsList(RX_APIDEF const rx_graphicsPipeline pipeline) {
+	return rx_dx12MakeGraphicsList(ctx, pipeline);
+}
+
+
+RX_API void rx_graphicsListBegin(rx_Context* ctx, rx_graphicsList list, rx_GraphicsListStateDesc* config) {
+	rx_dx12GraphicsListBegin(ctx, list, config);
+}
+
+RX_API rx_graphicsPipeline rx_makeGraphicsPipeline(RX_APIDEF rx_GraphicsPipelineDesc* desc) {
+	return rx_dx12MakeGraphicsPipeline(ctx, desc);
 }
